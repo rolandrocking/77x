@@ -228,4 +228,4 @@ def main(total_users: int = 100, processes: int = 2):
 
 if __name__ == "__main__":
     # Start with smaller load and gradually increase
-    main(total_users=100, processes=2)
+    main(total_users=100, processes=10)
