@@ -30,64 +30,64 @@ services:
       timeout: 5s
       retries: 5
 
-  77x:
-    container_name: 77x
-    build:
-      context: .
-    ports:
-     - "8005:8005"
-    env_file:
-     - .env
-    volumes:
-      - .:/app
-    depends_on:
-     postgres:
-       condition: service_healthy
-     redis:
-       condition: service_healthy
-    restart: unless-stopped
-
-
-#  fastapi1:
-#    build: .
-#    env_file:
-#      - .env
-#    depends_on:
-#      postgres:
-#        condition: service_healthy
-#      redis:
-#        condition: service_healthy
-#
-#  fastapi2:
-#    build: .
-#    env_file:
-#      - .env
-#    depends_on:
-#      postgres:
-#        condition: service_healthy
-#      redis:
-#        condition: service_healthy
-#
-#  fastapi3:
-#    build: .
-#    env_file:
-#      - .env
-#    depends_on:
-#      postgres:
-#        condition: service_healthy
-#      redis:
-#        condition: service_healthy
-#
-#  nginx:
-#    image: nginx:alpine
+#  77x:
+#    container_name: 77x
+#    build:
+#      context: .
 #    ports:
-#      - "8005:80"
+#     - "8005:8005"
+#    env_file:
+#     - .env
 #    volumes:
-#      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+#      - .:/app
 #    depends_on:
-#      - fastapi1
-#      - fastapi2
-#      - fastapi3
+#     postgres:
+#       condition: service_healthy
+#     redis:
+#       condition: service_healthy
+#    restart: unless-stopped
+
+
+  fastapi1:
+    build: .
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  fastapi2:
+    build: .
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  fastapi3:
+    build: .
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8005:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - fastapi1
+      - fastapi2
+      - fastapi3
 
 volumes:
   postgres_data:
