@@ -1,33 +1,19 @@
 """
-SQLAlchemy database models.
+SQLModel database models.
 """
-from datetime import datetime
-from sqlalchemy import Column, String, DateTime
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.dialects.postgresql import UUID
 import uuid
+from sqlmodel import Field
+from .base import BaseModel
 
 
-class Base(DeclarativeBase):
-    """Base class for all database models."""
-    pass
-
-
-class User(Base):
+class User(BaseModel, table=True):
     """User model for the database."""
     __tablename__ = "users"
 
-    user_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    email = Column(String(255), unique=True, nullable=False, index=True)
-    name = Column(String(255), nullable=False)
-    password_hash = Column(String(255), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    user_id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    email: str = Field(index=True, unique=True, max_length=255)
+    name: str = Field(max_length=255)
+    password_hash: str = Field(max_length=255)
 
     def __repr__(self):
         return f"<User(id={self.user_id}, email='{self.email}' name='{self.name}')>"
-
-# Future database models can be added here
-# class Coupon(Base):
-#     __tablename__ = "coupons"
-#     # ... fields

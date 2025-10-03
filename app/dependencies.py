@@ -3,10 +3,11 @@ FastAPI dependencies for authentication and database access.
 """
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel import select
 
 from app.core.database import get_db
-from app.models import User
+from app.models.users import User
 from app.services.auth_service import AuthService
 
 # Security scheme
@@ -27,7 +28,8 @@ async def get_current_user(
         )
     
     # Get user from database
-    user = await db.get(User, user_id)
+    result = await db.exec(select(User).where(User.user_id == user_id))
+    user = result.first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

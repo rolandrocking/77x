@@ -1,33 +1,33 @@
-from fastapi import Depends
-from typing import Annotated
-
+"""
+Database connection and session management.
+"""
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.orm import sessionmaker
+
 from app.core.config import settings
 
+# Create async engine using settings
+engine = create_async_engine(settings.DATABASE_URL, echo=False)
 
-# Create database engine
-async_engine = create_async_engine(
-    settings.async_database_url,
-    pool_size=15,  # Increase the base pool size
-    max_overflow=15,  # Allow extra connections if needed
-    pool_timeout=30,  # Time to wait before raising TimeoutError
-    pool_recycle=180,
-)
-
-async_session_maker = async_sessionmaker(
-    async_engine,
-    class_=AsyncSession,
-    expire_on_commit=False
+# Create async session factory
+AsyncSessionLocal = sessionmaker(
+    engine, class_=AsyncSession, expire_on_commit=False
 )
 
 
-async def get_async_session():
-    async with async_session_maker() as session:
+async def get_db() -> AsyncSession:
+    """Dependency to get database session."""
+    async with AsyncSessionLocal() as session:
         try:
             yield session
-        except Exception:
-            await session.rollback()
-            raise
+        finally:
+            await session.close()
 
-AsyncDBSession = Annotated[AsyncSession, Depends(get_async_session)]
+
+async def init_db():
+    """Initialize database - migrations are handled by Alembic."""
+    # With Alembic, we don't create tables here anymore
+    # Tables are created and managed through migrations
+    # This function is kept for backward compatibility
+    pass

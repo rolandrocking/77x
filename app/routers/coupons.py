@@ -3,9 +3,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.services.coupon_service import CouponService
 from app.services.auth_service import AuthService
 from app.dependencies import get_current_user
-from app.schemas import TokenValidationRequest, TokenUsageRequest
+from app.schemas.tokens import TokenValidationRequest, TokenUsageRequest
 
-router = APIRouter(prefix="/coupons", tags=["coupons"])
+router = APIRouter()
 
 
 # Initialize services

@@ -1,12 +1,11 @@
 import logging
-from typing import Optional
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.models import User
+from app.models.users import User
+from app.schemas.users import UserCreate, UserResponse, AuthResponse
 from app.services.auth_service import AuthService
-from app.schemas import UserCreate, UserResponse, AuthResponse
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +20,8 @@ class UserService:
     async def register_user(self, user_data: UserCreate) -> AuthResponse:
         try:
             # Check if user already exists
-            result = await self.db.execute(select(User).where(User.email == user_data.email))
-            existing_user = result.scalar_one_or_none()
+            result = await self.db.exec(select(User).where(User.email == user_data.email))
+            existing_user = result.first()
             
             if existing_user:
                 from fastapi import HTTPException, status
@@ -71,8 +70,8 @@ class UserService:
     async def login_user(self, login_data) -> AuthResponse:
         try:
             # Find user by email
-            result = await self.db.execute(select(User).where(User.email == login_data.email))
-            user = result.scalar_one_or_none()
+            result = await self.db.exec(select(User).where(User.email == login_data.email))
+            user = result.first()
             
             if not user:
                 from fastapi import HTTPException, status

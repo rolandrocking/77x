@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, status
 from app.managers.redis_manager import redis_manager
 from app.core.database import engine
 
-router = APIRouter(prefix="/health", tags=["health"])
+router = APIRouter()
 
 
 @router.get("/")

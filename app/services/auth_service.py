@@ -64,15 +64,7 @@ class AuthService:
     
     @staticmethod
     def verify_auth_token(token: str) -> Optional[str]:
-        """
-        Verify and decode an authentication JWT token, return user_id.
-        
-        Args:
-            token: JWT token string
-            
-        Returns:
-            User ID if valid, None otherwise
-        """
+
         try:
             payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
             if payload.get("type") == "auth":

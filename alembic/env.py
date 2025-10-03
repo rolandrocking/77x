@@ -1,13 +1,18 @@
 import os
+import sys
 from logging.config import fileConfig
+
+# Add the app directory to the Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from alembic import context
 from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
-from sqlmodel import SQLModel
 
-# need to be imported for alembic
-from app.models import User
+# Import SQLModel and our models
+from sqlmodel import SQLModel
+from app.models.users import User  # This will register the model with SQLModel
+from app.core.config import settings
 
 # Load environment variables from .env file
 load_dotenv(override=True)
@@ -16,13 +21,8 @@ load_dotenv(override=True)
 # access to the values within the .ini file in use.
 config = context.config
 
-db = os.getenv("DB")
-user = os.getenv("DB_USER")
-password = os.getenv("DB_PASSWORD")
-host = os.getenv("DB_HOST")
-port = os.getenv("DB_PORT")
-
-database_url = f"postgresql://{user}:{password}@{host}:{port}/{db}"
+# Configure database URL from settings (use psycopg2 instead of asyncpg for Alembic)
+database_url = settings.DATABASE_URL.replace("+asyncpg", "+psycopg2")
 
 config.set_main_option("sqlalchemy.url", database_url)
 
@@ -34,8 +34,6 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
 target_metadata = SQLModel.metadata
 
 # other values from the config, defined by the needs of env.py,

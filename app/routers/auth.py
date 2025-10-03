@@ -4,7 +4,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.schemas import UserCreate, UserLogin, AuthResponse, GoogleAuthResponse
+from app.schemas.users import UserCreate, UserLogin, AuthResponse, GoogleAuthResponse
 from app.services.user_service import UserService
 from app.services.auth_service import AuthService
 from app.services.google_oauth_service import GoogleOAuthService
@@ -12,7 +12,7 @@ from app.services.google_oauth_service import GoogleOAuthService
 logger = logging.getLogger(__name__)
 
 # Router instance
-router = APIRouter(tags=["authentication"])
+router = APIRouter()
 
 # Security scheme
 security = HTTPBearer()
