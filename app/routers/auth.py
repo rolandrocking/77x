@@ -7,7 +7,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import UserCreate, UserLogin, AuthResponse, GoogleAuthResponse
+from app.models import User
+from app.schemas import UserCreate, UserLogin, AuthResponse, GoogleAuthResponse
 from app.services.user_service import UserService
 from app.services.auth_service import AuthService
 from app.services.google_oauth_service import GoogleOAuthService

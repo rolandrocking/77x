@@ -7,9 +7,9 @@ from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.database import User
+from app.models import User
 from app.services.auth_service import AuthService
-from app.models import UserCreate, UserResponse, AuthResponse
+from app.schemas import UserCreate, UserResponse, AuthResponse
 
 logger = logging.getLogger(__name__)
 
