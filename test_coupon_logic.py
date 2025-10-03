@@ -4,28 +4,27 @@ import uuid
 import multiprocessing
 import time
 from statistics import mean, median
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 BASE_URL = "http://localhost:8005"
 REGISTER_ENDPOINT = f"{BASE_URL}/register"
 COUPON_ENDPOINT = f"{BASE_URL}/generate-coupon"
 
-# More conservative settings
-CONCURRENCY_LIMIT = 10  # Reduced from 50
-TIMEOUT = httpx.Timeout(60.0, connect=15.0)  # Increased timeout
+# Load test parameters
+CONCURRENCY_LIMIT = 10
+TIMEOUT = httpx.Timeout(60.0, connect=15.0)
 MAX_RETRIES = 2
 RETRY_DELAY = 1.0
 
 
 async def register_and_get_token(client, idx: int, retry_count=0):
-    """Register a new user and return JWT access token with retry logic."""
+    """Register a new user and return JWT access token."""
     email = f"user{idx}_{uuid.uuid4().hex[:6]}@example.com"
     payload = {
         "email": email,
         "password": "password123",
         "name": f"TestUser{idx}"
     }
-    
     try:
         r = await client.post(REGISTER_ENDPOINT, json=payload)
         r.raise_for_status()
@@ -43,9 +42,9 @@ async def register_and_get_token(client, idx: int, retry_count=0):
 
 
 async def generate_coupon(client, token: str):
-    """Try to generate a coupon with a given JWT token."""
+    """Generate a coupon with a given JWT token."""
     start = time.perf_counter()
-    
+
     try:
         r = await client.post(
             COUPON_ENDPOINT,
@@ -66,65 +65,50 @@ async def generate_coupon(client, token: str):
 
 
 async def user_flow(idx: int, sem: asyncio.Semaphore):
-    """One full user flow: register + generate coupon."""
+    """One user flow: register + generate coupon."""
     async with sem:
         async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-            # Registration
             token, user_id, reg_error = await register_and_get_token(client, idx)
-            
+
             if reg_error:
                 return {
                     "success": False,
-                    "user_id": None,
-                    "result": {},
                     "latency": 0,
-                    "error": f"Registration failed: {reg_error}",
-                    "stage": "registration"
+                    "error": f"Registration failed: {reg_error}"
                 }
-            
-            # Coupon generation
+
             success, result, latency, coupon_error = await generate_coupon(client, token)
-            
             return {
                 "success": success,
-                "user_id": user_id,
-                "result": result,
                 "latency": latency,
-                "error": coupon_error,
-                "stage": "coupon" if not coupon_error else "coupon_failed"
+                "error": coupon_error
             }
 
 
 async def run_users(start_idx: int, num_users: int):
-    """Run many users concurrently inside one process."""
+    """Run users concurrently inside one process."""
     sem = asyncio.Semaphore(CONCURRENCY_LIMIT)
     tasks = [user_flow(start_idx + i, sem) for i in range(num_users)]
-    
-    # Use return_exceptions to prevent one failure from stopping everything
     results = await asyncio.gather(*tasks, return_exceptions=True)
-    
-    # Convert exceptions to error results
+
     processed_results = []
-    for i, r in enumerate(results):
+    for r in results:
         if isinstance(r, Exception):
             processed_results.append({
                 "success": False,
-                "user_id": None,
-                "result": {},
                 "latency": 0,
-                "error": f"Unhandled exception: {str(r)}",
-                "stage": "exception"
+                "error": f"Unhandled exception: {str(r)}"
             })
         else:
             processed_results.append(r)
-    
+
     return processed_results
 
 
 def worker(start_idx: int, num_users: int, result_queue):
     """Worker process that runs a batch of users."""
     asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
-    
+
     try:
         results = asyncio.run(run_users(start_idx, num_users))
     except Exception as e:
@@ -132,20 +116,20 @@ def worker(start_idx: int, num_users: int, result_queue):
             "success": 0,
             "failure": num_users,
             "latencies": [],
-            "errors": {f"Process error": num_users},
-            "sample": []
+            "errors": {"Process error": num_users},
+            "timestamps": [],
         })
         return
 
     success_count = sum(1 for r in results if r["success"])
     failure_count = num_users - success_count
     latencies = [r["latency"] for r in results if r["success"]]
-    
-    # Categorize errors
+    timestamps = [time.time() for _ in results]  # request completion times
+
     error_counts = defaultdict(int)
     for r in results:
         if not r["success"] and r.get("error"):
-            error_type = r["error"].split(":")[0]  # Get error prefix
+            error_type = r["error"].split(":")[0]
             error_counts[error_type] += 1
 
     result_queue.put({
@@ -153,7 +137,7 @@ def worker(start_idx: int, num_users: int, result_queue):
         "failure": failure_count,
         "latencies": latencies,
         "errors": dict(error_counts),
-        "sample": results[:3]  # Sample results
+        "timestamps": timestamps,
     })
 
 
@@ -171,10 +155,8 @@ def main(total_users: int = 100, processes: int = 2):
 
     for i in range(processes):
         start_idx = i * users_per_process
-        p = multiprocessing.Process(
-            target=worker,
-            args=(start_idx, users_per_process, result_queue)
-        )
+        p = multiprocessing.Process(target=worker,
+                                    args=(start_idx, users_per_process, result_queue))
         jobs.append(p)
         p.start()
 
@@ -182,7 +164,7 @@ def main(total_users: int = 100, processes: int = 2):
         p.join()
 
     total_success, total_failure = 0, 0
-    all_latencies = []
+    all_latencies, all_timestamps = [], []
     all_errors = defaultdict(int)
 
     while not result_queue.empty():
@@ -190,28 +172,30 @@ def main(total_users: int = 100, processes: int = 2):
         total_success += result["success"]
         total_failure += result["failure"]
         all_latencies.extend(result["latencies"])
-        
+        all_timestamps.extend(result["timestamps"])
         for error_type, count in result["errors"].items():
             all_errors[error_type] += count
 
     elapsed = time.time() - start_time
-    
+
     print("=" * 60)
-    print(f"LOAD TEST RESULTS")
+    print("LOAD TEST RESULTS")
     print("=" * 60)
     print(f"Total users simulated: {total_users}")
-    print(f"Successful coupons: {total_success} ({total_success/total_users*100:.1f}%)")
-    print(f"Failures: {total_failure} ({total_failure/total_users*100:.1f}%)")
+    print(f"Successful coupons: {total_success} ({total_success / total_users * 100:.1f}%)")
+    print(f"Failures: {total_failure} ({total_failure / total_users * 100:.1f}%)")
     print(f"Elapsed time: {elapsed:.2f}s")
-    print(f"Throughput: {total_users/elapsed:.2f} requests/second")
+    print(f"Throughput (avg): {total_users / elapsed:.2f} req/s")
 
+    # Errors
     if all_errors:
-        print(f"\nError breakdown:")
+        print("\nError breakdown:")
         for error_type, count in sorted(all_errors.items(), key=lambda x: -x[1]):
-            print(f"  {error_type}: {count} ({count/total_users*100:.1f}%)")
+            print(f"  {error_type}: {count} ({count / total_users * 100:.1f}%)")
 
+    # Latency stats
     if all_latencies:
-        print(f"\nLatency statistics (successful requests only):")
+        print("\nLatency statistics (successful only):")
         print(f"  Avg: {mean(all_latencies):.3f}s")
         print(f"  Median (p50): {median(all_latencies):.3f}s")
         print(f"  Min: {min(all_latencies):.3f}s")
@@ -219,13 +203,20 @@ def main(total_users: int = 100, processes: int = 2):
         sorted_latencies = sorted(all_latencies)
         for perc in [0.9, 0.95, 0.99]:
             idx = min(int(len(sorted_latencies) * perc), len(sorted_latencies) - 1)
-            print(f"  p{int(perc*100)}: {sorted_latencies[idx]:.3f}s")
+            print(f"  p{int(perc * 100)}: {sorted_latencies[idx]:.3f}s")
     else:
-        print("\nNo successful requests - cannot calculate latency statistics")
-    
+        print("\nNo successful requests - cannot calculate latency stats")
+
+    # Requests per second timeline
+    if all_timestamps:
+        print("\nRequests per second timeline:")
+        bucketed = Counter(int(ts - start_time) for ts in all_timestamps)
+        for sec in range(int(elapsed) + 1):
+            print(f"  {sec:02d}s: {bucketed[sec]} reqs")
+
     print("=" * 60)
 
 
 if __name__ == "__main__":
-    # Start with smaller load and gradually increase
-    main(total_users=100, processes=10)
+    # Example: 1000 users across 20 processes
+    main(total_users=1000, processes=20)

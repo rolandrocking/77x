@@ -1,57 +1,128 @@
 """
-Health check router for monitoring and status endpoints.
+Health check router for monitoring service status.
 """
-import logging
-from datetime import datetime
-from fastapi import APIRouter
-import redis
+from fastapi import APIRouter, HTTPException, status
+from app.redis_manager import redis_manager
+from app.database import engine
 
-from app.config import settings
-from app.models import HealthResponse
-
-logger = logging.getLogger(__name__)
-
-# Router instance
-router = APIRouter(tags=["health"])
-
-# Redis connection
-redis_client = redis.Redis(
-    host=settings.REDIS_HOST,
-    port=settings.REDIS_PORT,
-    db=settings.REDIS_DB,
-    decode_responses=True,
-    socket_connect_timeout=5,
-    socket_timeout=5,
-    retry_on_timeout=True
-)
+router = APIRouter(prefix="/health", tags=["health"])
 
 
-def check_redis_connection() -> bool:
-    """
-    Check if Redis is available.
-    
-    Returns:
-        True if Redis is connected, False otherwise
-    """
-    try:
-        redis_client.ping()
-        return True
-    except redis.RedisError:
-        return False
-
-
-@router.get("/health", response_model=HealthResponse)
+@router.get("/")
 async def health_check():
     """
-    Health check endpoint to verify service status.
+    Basic health check endpoint.
     
     Returns:
-        Health status information including Redis connectivity
+        Dictionary with service status
     """
-    redis_healthy = check_redis_connection()
+    return {
+        "status": "healthy",
+        "service": "77x-coupon-service",
+        "version": "1.0.0"
+    }
+
+
+@router.get("/redis")
+async def redis_health():
+    """
+    Redis health check endpoint.
     
-    return HealthResponse(
-        status="healthy" if redis_healthy else "degraded",
-        redis_connected=redis_healthy,
-        timestamp=datetime.utcnow()
-    )
+    Returns:
+        Dictionary with Redis connection status
+    """
+    try:
+        is_connected = await redis_manager.ping()
+        if is_connected:
+            return {
+                "status": "healthy",
+                "service": "redis",
+                "connected": True
+            }
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Redis connection failed"
+            )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Redis health check failed: {str(e)}"
+        )
+
+
+@router.get("/database")
+async def database_health():
+    """
+    Database health check endpoint.
+    
+    Returns:
+        Dictionary with database connection status
+    """
+    try:
+        async with engine.begin() as conn:
+            await conn.execute("SELECT 1")
+        return {
+            "status": "healthy",
+            "service": "postgresql",
+            "connected": True
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Database health check failed: {str(e)}"
+        )
+
+
+@router.get("/full")
+async def full_health_check():
+    """
+    Comprehensive health check for all services.
+    
+    Returns:
+        Dictionary with status of all services
+    """
+    health_status = {
+        "status": "healthy",
+        "service": "77x-coupon-service",
+        "version": "1.0.0",
+        "services": {}
+    }
+    
+    # Check Redis
+    try:
+        redis_connected = await redis_manager.ping()
+        health_status["services"]["redis"] = {
+            "status": "healthy" if redis_connected else "unhealthy",
+            "connected": redis_connected
+        }
+    except Exception as e:
+        health_status["services"]["redis"] = {
+            "status": "unhealthy",
+            "error": str(e)
+        }
+        health_status["status"] = "degraded"
+    
+    # Check Database
+    try:
+        async with engine.begin() as conn:
+            await conn.execute("SELECT 1")
+        health_status["services"]["database"] = {
+            "status": "healthy",
+            "connected": True
+        }
+    except Exception as e:
+        health_status["services"]["database"] = {
+            "status": "unhealthy",
+            "error": str(e)
+        }
+        health_status["status"] = "degraded"
+    
+    # Determine overall status
+    if health_status["status"] == "degraded":
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=health_status
+        )
+    
+    return health_status

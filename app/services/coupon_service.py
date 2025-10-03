@@ -1,41 +1,36 @@
 """
-Coupon service for token generation and management operations.
+Coupon service for token generation and management operations with async Redis.
 """
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, Any
 
-import redis
-
 from app.config import settings
 from app.services.auth_service import AuthService
+from app.redis_manager import redis_manager
 
 logger = logging.getLogger(__name__)
 
 
 class CouponService:
-    """Service for coupon token operations."""
+    """Service for coupon token operations with async Redis."""
     
-    def __init__(self, redis_client: redis.Redis):
-        self.redis_client = redis_client
+    def __init__(self):
         self.auth_service = AuthService()
     
-    def check_redis_connection(self) -> bool:
+    async def check_redis_connection(self) -> bool:
         """
         Check if Redis is available.
         
         Returns:
             True if Redis is connected, False otherwise
         """
-        try:
-            self.redis_client.ping()
-            return True
-        except redis.RedisError:
-            return False
+        return await redis_manager.ping()
     
-    def generate_coupon(self, current_user_id: str) -> Dict[str, Any]:
+    async def generate_coupon(self, current_user_id: str) -> Dict[str, Any]:
         """
         Generate a new coupon token if under the limits.
+        Uses atomic Redis operations to prevent race conditions.
         
         Args:
             current_user_id: ID of the user requesting the token
@@ -46,7 +41,7 @@ class CouponService:
         Raises:
             HTTPException: If limits are exceeded or Redis is unavailable
         """
-        if not self.check_redis_connection():
+        if not await self.check_redis_connection():
             logger.error("Redis connection failed during coupon generation")
             from fastapi import HTTPException, status
             raise HTTPException(
@@ -55,13 +50,14 @@ class CouponService:
             )
         
         try:
-            # Check user's token count first
+            # Check user's token count first with atomic operation
             user_counter_key = f"{settings.USER_COUNTER_KEY_PREFIX}{current_user_id}"
-            user_token_count = self.redis_client.incr(user_counter_key)
+            user_token_count, user_success = await redis_manager.atomic_increment_with_limit(
+                user_counter_key, 
+                settings.MAX_TOKENS_PER_USER
+            )
             
-            if user_token_count > settings.MAX_TOKENS_PER_USER:
-                # Decrement back since user can't have more tokens
-                self.redis_client.decr(user_counter_key)
+            if not user_success:
                 logger.warning(f"User {current_user_id} token limit reached. Attempted to issue token #{user_token_count}")
                 from fastapi import HTTPException, status
                 raise HTTPException(
@@ -69,20 +65,19 @@ class CouponService:
                     detail=f"User token limit reached. Maximum of {settings.MAX_TOKENS_PER_USER} tokens per user allowed."
                 )
             
-            # Check global token limit
-            global_count = self.redis_client.incr(settings.TOKEN_COUNTER_KEY)
+            # Check global token limit with atomic operation
+            global_count, global_success = await redis_manager.atomic_increment_with_limit(
+                settings.TOKEN_COUNTER_KEY,
+                settings.MAX_TOKENS,
+                rollback_keys=[user_counter_key]  # Rollback user counter if global limit exceeded
+            )
             
-            if global_count > settings.MAX_TOKENS:
-                # Decrement both counters since we can't issue the token
-                self.redis_client.decr(settings.TOKEN_COUNTER_KEY)
-                self.redis_client.decr(user_counter_key)
-                remaining = settings.MAX_TOKENS - (global_count - 1)
-                
+            if not global_success:
                 logger.warning(f"Global token limit reached. Attempted to issue token #{global_count}")
                 from fastapi import HTTPException, status
                 raise HTTPException(
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail=f"Global token limit reached. Maximum of {settings.MAX_TOKENS} tokens allowed. {remaining} tokens remaining."
+                    detail=f"Global token limit reached. Maximum of {settings.MAX_TOKENS} tokens allowed. {settings.MAX_TOKENS - global_count} tokens remaining."
                 )
             
             # Generate the token
@@ -100,7 +95,7 @@ class CouponService:
                 "user_id": current_user_id
             }
             
-        except redis.RedisError as e:
+        except Exception as e:
             logger.error(f"Redis error during coupon generation: {e}")
             from fastapi import HTTPException, status
             raise HTTPException(
@@ -108,7 +103,7 @@ class CouponService:
                 detail="Service temporarily unavailable - Redis error"
             )
     
-    def validate_token(self, token: str) -> Dict[str, Any]:
+    async def validate_token(self, token: str) -> Dict[str, Any]:
         """
         Validate a coupon token and check if it's been used.
         
@@ -118,7 +113,7 @@ class CouponService:
         Returns:
             Dictionary containing validation result
         """
-        if not self.check_redis_connection():
+        if not await self.check_redis_connection():
             logger.error("Redis connection failed during token validation")
             from fastapi import HTTPException, status
             raise HTTPException(
@@ -145,7 +140,7 @@ class CouponService:
         
         # Check if token has been used
         used_key = f"{settings.TOKEN_USED_KEY_PREFIX}{token_number}"
-        is_used = self.redis_client.exists(used_key)
+        is_used = await redis_manager.exists(used_key)
         
         if is_used:
             return {
@@ -162,7 +157,7 @@ class CouponService:
             "user_id": user_id
         }
     
-    def use_token(self, token: str) -> Dict[str, Any]:
+    async def use_token(self, token: str) -> Dict[str, Any]:
         """
         Mark a token as used (single-use enforcement).
         
@@ -175,7 +170,7 @@ class CouponService:
         Raises:
             HTTPException: If token is invalid, expired, or already used
         """
-        if not self.check_redis_connection():
+        if not await self.check_redis_connection():
             logger.error("Redis connection failed during token usage")
             from fastapi import HTTPException, status
             raise HTTPException(
@@ -204,7 +199,7 @@ class CouponService:
         
         # Check if token has already been used
         used_key = f"{settings.TOKEN_USED_KEY_PREFIX}{token_number}"
-        if self.redis_client.exists(used_key):
+        if await redis_manager.exists(used_key):
             from fastapi import HTTPException, status
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -213,7 +208,7 @@ class CouponService:
         
         # Mark token as used with expiration
         # Set expiration to match token expiry
-        self.redis_client.setex(used_key, settings.TOKEN_EXPIRY_HOURS * 3600, user_id)
+        await redis_manager.setex(used_key, settings.TOKEN_EXPIRY_HOURS * 3600, user_id)
         
         logger.info(f"Token #{token_number} for user {user_id} marked as used")
         
@@ -224,7 +219,7 @@ class CouponService:
             "used_at": datetime.utcnow().isoformat()
         }
     
-    def get_stats(self) -> Dict[str, Any]:
+    async def get_stats(self) -> Dict[str, Any]:
         """
         Get current statistics about token usage.
         
@@ -234,7 +229,7 @@ class CouponService:
         Raises:
             HTTPException: If Redis is unavailable
         """
-        if not self.check_redis_connection():
+        if not await self.check_redis_connection():
             logger.error("Redis connection failed during stats retrieval")
             from fastapi import HTTPException, status
             raise HTTPException(
@@ -243,7 +238,7 @@ class CouponService:
             )
         
         try:
-            current_count = self.redis_client.get(settings.TOKEN_COUNTER_KEY)
+            current_count = await redis_manager.get(settings.TOKEN_COUNTER_KEY)
             current_count = int(current_count) if current_count else 0
             
             return {
@@ -254,7 +249,7 @@ class CouponService:
                 "limit_reached": current_count >= settings.MAX_TOKENS,
                 "timestamp": datetime.utcnow().isoformat()
             }
-        except redis.RedisError as e:
+        except Exception as e:
             logger.error(f"Redis error during stats retrieval: {e}")
             from fastapi import HTTPException, status
             raise HTTPException(
@@ -262,7 +257,7 @@ class CouponService:
                 detail="Service temporarily unavailable - Redis error"
             )
     
-    def get_user_stats(self, current_user_id: str) -> Dict[str, Any]:
+    async def get_user_stats(self, current_user_id: str) -> Dict[str, Any]:
         """
         Get current user's token statistics.
         
@@ -275,7 +270,7 @@ class CouponService:
         Raises:
             HTTPException: If Redis is unavailable
         """
-        if not self.check_redis_connection():
+        if not await self.check_redis_connection():
             logger.error("Redis connection failed during user stats retrieval")
             from fastapi import HTTPException, status
             raise HTTPException(
@@ -285,7 +280,7 @@ class CouponService:
         
         try:
             user_counter_key = f"{settings.USER_COUNTER_KEY_PREFIX}{current_user_id}"
-            user_token_count = self.redis_client.get(user_counter_key)
+            user_token_count = await redis_manager.get(user_counter_key)
             user_token_count = int(user_token_count) if user_token_count else 0
             
             return {
@@ -296,7 +291,7 @@ class CouponService:
                 "user_limit_reached": user_token_count >= settings.MAX_TOKENS_PER_USER,
                 "timestamp": datetime.utcnow().isoformat()
             }
-        except redis.RedisError as e:
+        except Exception as e:
             logger.error(f"Redis error during user stats retrieval: {e}")
             from fastapi import HTTPException, status
             raise HTTPException(

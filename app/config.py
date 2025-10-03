@@ -32,6 +32,12 @@ class Settings:
     TOKEN_COUNTER_KEY: str = "coupon_token_counter"
     TOKEN_USED_KEY_PREFIX: str = "token_used:"
     USER_COUNTER_KEY_PREFIX: str = "user_token_counter:"
+    
+    # Google OAuth configuration
+    GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")
+    GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
+    GOOGLE_REDIRECT_URI: str = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8005/auth/google/callback")
+    GOOGLE_SCOPES: str = "openid email profile"
 
 
 # Global settings instance

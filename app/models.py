@@ -91,3 +91,19 @@ class TokenUsageResponse(BaseModel):
     token_number: int
     user_id: str
     used_at: datetime
+
+
+class GoogleUserInfo(BaseModel):
+    """Schema for Google user information."""
+    google_id: str
+    name: str
+    email: str
+    picture: str
+
+
+class GoogleAuthResponse(BaseModel):
+    """Schema for Google OAuth authentication response."""
+    access_token: str
+    token_type: str
+    google_user_info: GoogleUserInfo
+    message: str
