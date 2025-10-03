@@ -1,6 +1,3 @@
-"""
-Async Redis connection manager with connection pooling and atomic operations.
-"""
 import logging
 import asyncio
 from typing import Optional, Dict, Any
@@ -15,7 +12,6 @@ logger = logging.getLogger(__name__)
 
 
 class AsyncRedisManager:
-    """Async Redis connection manager with connection pooling."""
     
     def __init__(self):
         self.pool: Optional[ConnectionPool] = None
@@ -23,7 +19,6 @@ class AsyncRedisManager:
         self._connection_lock = asyncio.Lock()
     
     async def initialize(self):
-        """Initialize Redis connection pool."""
         async with self._connection_lock:
             if self.pool is None:
                 try:
@@ -79,17 +74,7 @@ class AsyncRedisManager:
         limit: int, 
         rollback_keys: Optional[list] = None
     ) -> tuple[int, bool]:
-        """
-        Atomically increment a counter with a limit check.
-        
-        Args:
-            key: Redis key to increment
-            limit: Maximum allowed value
-            rollback_keys: Keys to decrement if limit exceeded
-            
-        Returns:
-            Tuple of (new_value, success)
-        """
+
         if not self.redis:
             await self.initialize()
         

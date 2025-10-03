@@ -1,12 +1,8 @@
-"""
-Configuration settings for the application.
-"""
 import os
 from typing import Optional
 
 
 class Settings:
-    """Application configuration settings."""
     
     # Database components
     DB_HOST: str = os.getenv("DB_HOST", "localhost")
@@ -28,7 +24,7 @@ class Settings:
     # Token configuration
     TOKEN_EXPIRY_HOURS: int = int(os.getenv("TOKEN_EXPIRY_HOURS", "24"))
     MAX_TOKENS: int = int(os.getenv("MAX_TOKENS", "77"))
-    MAX_TOKENS_PER_USER: int = int(os.getenv("MAX_TOKENS_PER_USER", "5"))
+    MAX_TOKENS_PER_USER: int = int(os.getenv("MAX_TOKENS_PER_USER", "1"))
     
     # Redis key constants
     TOKEN_COUNTER_KEY: str = "coupon_token_counter"
@@ -46,22 +42,10 @@ class Settings:
     
     @property
     def DATABASE_URL(self) -> str:
-        """
-        Construct database URL from individual components.
-        
-        Returns:
-            Complete PostgreSQL database URL
-        """
         return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
     
     @property
     def REDIS_URL(self) -> str:
-        """
-        Construct Redis URL from individual components.
-        
-        Returns:
-            Complete Redis URL
-        """
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
 

@@ -1,6 +1,3 @@
-"""
-Authentication router for user registration and login endpoints.
-"""
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -26,18 +23,6 @@ google_oauth_service = GoogleOAuthService()
 
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
-    """
-    Get current user from JWT token.
-    
-    Args:
-        credentials: HTTP Bearer token credentials
-        
-    Returns:
-        User ID from the token
-        
-    Raises:
-        HTTPException: If token is invalid or expired
-    """
     auth_service = AuthService()
     user_id = auth_service.verify_auth_token(credentials.credentials)
     if not user_id:
@@ -54,19 +39,6 @@ async def register_user(
     user_data: UserCreate,
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Register a new user account.
-    
-    Args:
-        user_data: User registration data
-        db: Database session
-        
-    Returns:
-        Authentication response with access token
-        
-    Raises:
-        HTTPException: If user already exists or registration fails
-    """
     user_service = UserService(db)
     return await user_service.register_user(user_data)
 
@@ -76,31 +48,12 @@ async def login_user(
     login_data: UserLogin,
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Login with existing user credentials.
-    
-    Args:
-        login_data: User login credentials
-        db: Database session
-        
-    Returns:
-        Authentication response with access token
-        
-    Raises:
-        HTTPException: If credentials are invalid or login fails
-    """
     user_service = UserService(db)
     return await user_service.login_user(login_data)
 
 
 @router.get("/google/auth-url")
 async def get_google_auth_url():
-    """
-    Get Google OAuth authorization URL.
-    
-    Returns:
-        Dictionary with authorization URL and state
-    """
     auth_data = google_oauth_service.generate_authorization_url()
     return auth_data
 
@@ -111,17 +64,6 @@ async def google_oauth_callback(
     state: str,
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Handle Google OAuth callback.
-    
-    Args:
-        code: Authorization code from Google
-        state: State parameter for CSRF protection
-        db: Database session
-        
-    Returns:
-        Authentication response with JWT token
-    """
     try:
         # Exchange code for token and user info
         oauth_data = await google_oauth_service.exchange_code_for_token(code, state)

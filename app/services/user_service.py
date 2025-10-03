@@ -1,6 +1,3 @@
-"""
-User service for user management operations.
-"""
 import logging
 from typing import Optional
 
@@ -22,18 +19,6 @@ class UserService:
         self.auth_service = AuthService()
     
     async def register_user(self, user_data: UserCreate) -> AuthResponse:
-        """
-        Register a new user.
-        
-        Args:
-            user_data: User registration data
-            
-        Returns:
-            Authentication response with access token
-            
-        Raises:
-            HTTPException: If user already exists or registration fails
-        """
         try:
             # Check if user already exists
             result = await self.db.execute(select(User).where(User.email == user_data.email))
@@ -84,18 +69,6 @@ class UserService:
             )
     
     async def login_user(self, login_data) -> AuthResponse:
-        """
-        Login a user.
-        
-        Args:
-            login_data: User login data
-            
-        Returns:
-            Authentication response with access token
-            
-        Raises:
-            HTTPException: If credentials are invalid or login fails
-        """
         try:
             # Find user by email
             result = await self.db.execute(select(User).where(User.email == login_data.email))
