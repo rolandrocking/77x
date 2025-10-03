@@ -1,11 +1,11 @@
 from fastapi import APIRouter, HTTPException, status
-from app.redis_manager import redis_manager
-from app.database import engine
+from app.managers.redis_manager import redis_manager
+from app.core.database import engine
 
 router = APIRouter(prefix="/health", tags=["health"])
 
 
-@router.get("/health")
+@router.get("/")
 async def health_check():
     return {
         "status": "healthy",
@@ -14,7 +14,7 @@ async def health_check():
     }
 
 
-@router.get("/health/redis")
+@router.get("/redis")
 async def redis_health():
     try:
         is_connected = await redis_manager.ping()
@@ -36,7 +36,7 @@ async def redis_health():
         )
 
 
-@router.get("/health/database")
+@router.get("/database")
 async def database_health():
     try:
         async with engine.begin() as conn:
@@ -53,7 +53,7 @@ async def database_health():
         )
 
 
-@router.get("/health/full")
+@router.get("/full")
 async def full_health_check():
     health_status = {
         "status": "healthy",

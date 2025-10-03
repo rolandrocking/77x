@@ -3,8 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
-from app.models import User
+from app.core.database import get_db
 from app.schemas import UserCreate, UserLogin, AuthResponse, GoogleAuthResponse
 from app.services.user_service import UserService
 from app.services.auth_service import AuthService
@@ -52,7 +51,7 @@ async def login_user(
     return await user_service.login_user(login_data)
 
 
-@router.get("/google/auth-url")
+@router.get("/google/url")
 async def get_google_auth_url():
     auth_data = google_oauth_service.generate_authorization_url()
     return auth_data

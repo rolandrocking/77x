@@ -5,7 +5,7 @@ from typing import Optional
 from jose import jwt
 from passlib.context import CryptContext
 
-from app.config import settings
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 

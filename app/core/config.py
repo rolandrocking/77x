@@ -3,6 +3,9 @@ from typing import Optional
 
 
 class Settings:
+    PROJECT_NAME: str = "77x"
+    API_SERVICE_STR: str = "/api/v1/"
+    debug: bool = False
     
     # Database components
     DB_HOST: str = os.getenv("DB_HOST", "localhost")

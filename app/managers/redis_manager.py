@@ -1,12 +1,12 @@
 import logging
 import asyncio
-from typing import Optional, Dict, Any
+from typing import Optional, Any
 from contextlib import asynccontextmanager
 
 import redis.asyncio as redis
 from redis.asyncio import ConnectionPool
 
-from app.config import settings
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
