@@ -4,6 +4,7 @@ Coupon service for token generation and management operations with async Redis.
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, Any
+from fastapi import HTTPException, status
 
 from app.config import settings
 from app.services.auth_service import AuthService
@@ -43,7 +44,6 @@ class CouponService:
         """
         if not await self.check_redis_connection():
             logger.error("Redis connection failed during coupon generation")
-            from fastapi import HTTPException, status
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Service temporarily unavailable - Redis connection failed"
@@ -59,7 +59,6 @@ class CouponService:
             
             if not user_success:
                 logger.warning(f"User {current_user_id} token limit reached. Attempted to issue token #{user_token_count}")
-                from fastapi import HTTPException, status
                 raise HTTPException(
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                     detail=f"User token limit reached. Maximum of {settings.MAX_TOKENS_PER_USER} tokens per user allowed."
@@ -74,7 +73,6 @@ class CouponService:
             
             if not global_success:
                 logger.warning(f"Global token limit reached. Attempted to issue token #{global_count}")
-                from fastapi import HTTPException, status
                 raise HTTPException(
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                     detail=f"Global token limit reached. Maximum of {settings.MAX_TOKENS} tokens allowed. {settings.MAX_TOKENS - global_count} tokens remaining."
@@ -97,7 +95,6 @@ class CouponService:
             
         except Exception as e:
             logger.error(f"Redis error during coupon generation: {e}")
-            from fastapi import HTTPException, status
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Service temporarily unavailable - Redis error"
@@ -181,7 +178,6 @@ class CouponService:
         # Verify JWT token
         payload = self.auth_service.verify_jwt_token(token)
         if not payload:
-            from fastapi import HTTPException, status
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid or expired token"
@@ -191,7 +187,6 @@ class CouponService:
         user_id = payload.get("user_id")
         
         if not token_number or not user_id:
-            from fastapi import HTTPException, status
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid token format"
@@ -200,7 +195,6 @@ class CouponService:
         # Check if token has already been used
         used_key = f"{settings.TOKEN_USED_KEY_PREFIX}{token_number}"
         if await redis_manager.exists(used_key):
-            from fastapi import HTTPException, status
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Token has already been used"

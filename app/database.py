@@ -1,20 +1,14 @@
 """
 Database connection and session management.
 """
-import os
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.models import Base
+from app.config import settings
 
-# Database configuration
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", 
-    "postgresql+asyncpg://postgres:password@localhost:5432/coupon_service"
-)
-
-# Create async engine
-engine = create_async_engine(DATABASE_URL, echo=False)
+# Create async engine using settings
+engine = create_async_engine(settings.DATABASE_URL, echo=False)
 
 # Create async session factory
 AsyncSessionLocal = sessionmaker(

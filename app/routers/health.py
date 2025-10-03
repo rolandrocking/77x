@@ -8,7 +8,7 @@ from app.database import engine
 router = APIRouter(prefix="/health", tags=["health"])
 
 
-@router.get("/")
+@router.get("/health")
 async def health_check():
     """
     Basic health check endpoint.
@@ -23,7 +23,7 @@ async def health_check():
     }
 
 
-@router.get("/redis")
+@router.get("/health/redis")
 async def redis_health():
     """
     Redis health check endpoint.
@@ -51,7 +51,7 @@ async def redis_health():
         )
 
 
-@router.get("/database")
+@router.get("/health/database")
 async def database_health():
     """
     Database health check endpoint.
@@ -74,7 +74,7 @@ async def database_health():
         )
 
 
-@router.get("/full")
+@router.get("/health/full")
 async def full_health_check():
     """
     Comprehensive health check for all services.

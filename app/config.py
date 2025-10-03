@@ -8,6 +8,13 @@ from typing import Optional
 class Settings:
     """Application configuration settings."""
     
+    # Database components
+    DB_HOST: str = os.getenv("DB_HOST", "localhost")
+    DB_PORT: int = int(os.getenv("DB_PORT", "5432"))
+    DB_NAME: str = os.getenv("DB_NAME", "coupon_service")
+    DB_USER: str = os.getenv("DB_USER", "postgres")
+    DB_PASSWORD: str = os.getenv("DB_PASSWORD", "password")
+    
     # Redis configuration
     REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
     REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
@@ -16,17 +23,12 @@ class Settings:
     # JWT configuration
     JWT_SECRET: str = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
     JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRY_HOURS: int = int(os.getenv("JWT_EXPIRY_HOURS", "24"))
     
     # Token configuration
-    TOKEN_EXPIRY_HOURS: int = 24
-    MAX_TOKENS: int = 77
-    MAX_TOKENS_PER_USER: int = 5
-    
-    # Database configuration
-    DATABASE_URL: str = os.getenv(
-        "DATABASE_URL", 
-        "postgresql+asyncpg://postgres:password@localhost:5432/coupon_service"
-    )
+    TOKEN_EXPIRY_HOURS: int = int(os.getenv("TOKEN_EXPIRY_HOURS", "24"))
+    MAX_TOKENS: int = int(os.getenv("MAX_TOKENS", "77"))
+    MAX_TOKENS_PER_USER: int = int(os.getenv("MAX_TOKENS_PER_USER", "5"))
     
     # Redis key constants
     TOKEN_COUNTER_KEY: str = "coupon_token_counter"
@@ -38,6 +40,29 @@ class Settings:
     GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
     GOOGLE_REDIRECT_URI: str = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8005/auth/google/callback")
     GOOGLE_SCOPES: str = "openid email profile"
+    
+    # Application configuration
+    DEBUG: bool = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
+    
+    @property
+    def DATABASE_URL(self) -> str:
+        """
+        Construct database URL from individual components.
+        
+        Returns:
+            Complete PostgreSQL database URL
+        """
+        return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+    
+    @property
+    def REDIS_URL(self) -> str:
+        """
+        Construct Redis URL from individual components.
+        
+        Returns:
+            Complete Redis URL
+        """
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
 
 # Global settings instance
