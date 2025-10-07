@@ -40,15 +40,32 @@ class Settings:
     GOOGLE_REDIRECT_URI: str = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8005/auth/google/callback")
     GOOGLE_SCOPES: str = "openid email profile"
     
+    # Google Wallet configuration
+    GOOGLE_WALLET_PROJECT_ID: str = os.getenv("GOOGLE_WALLET_PROJECT_ID", "")
+    GOOGLE_WALLET_PRIVATE_KEY_ID: str = os.getenv("GOOGLE_WALLET_PRIVATE_KEY_ID", "")
+    GOOGLE_WALLET_PRIVATE_KEY: str = os.getenv("GOOGLE_WALLET_PRIVATE_KEY", "")
+    GOOGLE_WALLET_CLIENT_EMAIL: str = os.getenv("GOOGLE_WALLET_CLIENT_EMAIL", "")
+    GOOGLE_WALLET_CLIENT_ID: str = os.getenv("GOOGLE_WALLET_CLIENT_ID", "")
+    GOOGLE_WALLET_ISSUER_ID: str = os.getenv("GOOGLE_WALLET_ISSUER_ID", "")
+    GOOGLE_WALLET_ISSUER_NAME: str = os.getenv("GOOGLE_WALLET_ISSUER_NAME", "77x")
+    GOOGLE_WALLET_APP_LINK: str = os.getenv("GOOGLE_WALLET_APP_LINK", "https://77x.app")
+    
+    # Apple Wallet configuration
+    APPLE_WALLET_PASS_TYPE_IDENTIFIER: str = os.getenv("APPLE_WALLET_PASS_TYPE_IDENTIFIER", "pass.com.77x.coupon")
+    APPLE_WALLET_TEAM_IDENTIFIER: str = os.getenv("APPLE_WALLET_TEAM_IDENTIFIER", "")
+    APPLE_WALLET_ORGANIZATION_NAME: str = os.getenv("APPLE_WALLET_ORGANIZATION_NAME", "77x")
+    APPLE_WALLET_PRIVATE_KEY_PATH: str = os.getenv("APPLE_WALLET_PRIVATE_KEY_PATH", "")
+    APPLE_WALLET_CERTIFICATE_PATH: str = os.getenv("APPLE_WALLET_CERTIFICATE_PATH", "")
+    
     # Application configuration
     DEBUG: bool = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
     
     @property
-    def DATABASE_URL(self) -> str:
+    def async_database_url(self) -> str:
         return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
     
     @property
-    def REDIS_URL(self) -> str:
+    def redis_url(self) -> str:
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
 

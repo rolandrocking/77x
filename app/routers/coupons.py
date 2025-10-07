@@ -14,5 +14,7 @@ auth_service = AuthService()
 
 
 @router.post("/generate")
-async def generate_coupon(current_user=Depends(get_current_user)):
+async def generate_coupon(
+        current_user=Depends(get_current_user),
+):
     return await coupon_service.generate_coupon(current_user.user_id)

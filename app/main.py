@@ -9,7 +9,7 @@ from fastapi import FastAPI
 
 from app.core.config import settings
 from app.helpers.migrations import apply_migrations
-from app.routers import auth, coupons, health
+from app.routers import auth, coupons, health, wallets
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -44,3 +44,4 @@ app = FastAPI(
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(coupons.router, prefix="/coupons", tags=["Coupons"])
 app.include_router(health.router, prefix="/health", tags=["HealthCheck"])
+app.include_router(wallets.router, prefix="/wallets", tags=["Wallets"])

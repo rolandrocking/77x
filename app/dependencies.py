@@ -1,12 +1,8 @@
-"""
-FastAPI dependencies for authentication and database access.
-"""
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlmodel.ext.asyncio.session import AsyncSession
+from app.core.database import AsyncDBSession
 from sqlmodel import select
 
-from app.core.database import get_db
 from app.models.users import User
 from app.services.auth_service import AuthService
 
@@ -15,8 +11,8 @@ security = HTTPBearer()
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_db)
+    session: AsyncDBSession,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> User:
     auth_service = AuthService()
     user_id = auth_service.verify_auth_token(credentials.credentials)
@@ -28,7 +24,7 @@ async def get_current_user(
         )
     
     # Get user from database
-    result = await db.exec(select(User).where(User.user_id == user_id))
+    result = await session.exec(select(User).where(User.user_id == user_id))
     user = result.first()
     if not user:
         raise HTTPException(

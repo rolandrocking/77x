@@ -1,9 +1,8 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.database import AsyncDBSession
 from app.schemas.users import UserCreate, UserLogin, AuthResponse, GoogleAuthResponse
 from app.services.user_service import UserService
 from app.services.auth_service import AuthService
@@ -36,18 +35,18 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 @router.post("/register", response_model=AuthResponse)
 async def register_user(
     user_data: UserCreate,
-    db: AsyncSession = Depends(get_db)
+    session: AsyncDBSession
 ):
-    user_service = UserService(db)
+    user_service = UserService(session)
     return await user_service.register_user(user_data)
 
 
 @router.post("/login", response_model=AuthResponse)
 async def login_user(
     login_data: UserLogin,
-    db: AsyncSession = Depends(get_db)
+    session: AsyncDBSession
 ):
-    user_service = UserService(db)
+    user_service = UserService(session)
     return await user_service.login_user(login_data)
 
 
@@ -61,7 +60,7 @@ async def get_google_auth_url():
 async def google_oauth_callback(
     code: str,
     state: str,
-    db: AsyncSession = Depends(get_db)
+    session: AsyncDBSession
 ):
     try:
         # Exchange code for token and user info
@@ -69,7 +68,7 @@ async def google_oauth_callback(
         user_info = oauth_data["user_info"]
         
         # Check if user exists in our database
-        user_service = UserService(db)
+        user_service = UserService(session)
         existing_user = await user_service.get_user_by_email(user_info["email"])
         
         if existing_user:

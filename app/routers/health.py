@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
 from app.managers.redis_manager import redis_manager
-from app.core.database import engine
+from app.core.database import AsyncDBSession
 
 router = APIRouter()
 
@@ -37,10 +37,11 @@ async def redis_health():
 
 
 @router.get("/database")
-async def database_health():
+async def database_health(
+    session: AsyncDBSession
+):
     try:
-        async with engine.begin() as conn:
-            await conn.execute("SELECT 1")
+        await session.exec("SELECT 1")
         return {
             "status": "healthy",
             "service": "postgresql",

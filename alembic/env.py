@@ -22,7 +22,7 @@ load_dotenv(override=True)
 config = context.config
 
 # Configure database URL from settings (use psycopg2 instead of asyncpg for Alembic)
-database_url = settings.DATABASE_URL.replace("+asyncpg", "+psycopg2")
+database_url = settings.async_database_url.replace("+asyncpg", "+psycopg2")
 
 config.set_main_option("sqlalchemy.url", database_url)
 
